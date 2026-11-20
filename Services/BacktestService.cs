@@ -213,6 +213,7 @@ public class BacktestService
                         Trade = new Trade
                         {
                             Symbol = symbol,
+                            IsLong = isLong,
                             OpenTime = time,
                             EntryPrice = candle.Close,
                             PositionSize = sizing.PositionSize,
@@ -307,6 +308,16 @@ public class BacktestService
         if (result.TotalCapitalInvested > 0)
             sb.AppendLine($"   • Rendimento netto sul totale investito: {netPnl / result.TotalCapitalInvested * 100:F2}%");
         sb.AppendLine($"   • Drawdown massimo del P&L (a valore di mercato): ${result.MaxDrawdownAmount:F2}");
+
+        sb.AppendLine($"\n↕️ LONG vs SHORT (prima delle tasse):");
+        foreach (var (label, isLong) in new[] { ("BUY (long)", true), ("SELL (short)", false) })
+        {
+            var ts = result.Trades.Where(t => t.IsLong == isLong).ToList();
+            var wins = ts.Count(t => (t.Profit ?? 0) > 0);
+            sb.AppendLine($"   • {label}: {ts.Count} trade | vincenti {wins} | P&L ${ts.Sum(t => t.Profit ?? 0):F2}");
+        }
+        foreach (var g in result.Trades.Where(t => t.IsLong).GroupBy(t => t.OpenTime.ToString("yyyy-MM")).OrderBy(g => g.Key))
+            sb.AppendLine($"     BUY aperti {g.Key}: {g.Count()}");
 
         sb.AppendLine($"\n🎯 PERFORMANCE METRICS:");
         sb.AppendLine($"   • Trade chiusi: {result.Metrics.TotalTrades}");
