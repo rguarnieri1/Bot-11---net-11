@@ -6,7 +6,11 @@ public class EmaRibbonTrendFollowingStrategy
 {
     // Configurazione ottimizzata per win rate 60-62%
     private readonly int[] _emaPeriods = { 5, 10, 20, 30 };
-    private readonly decimal _volumeMultiplierThreshold = 1.5m;  // Volume almeno 50% sopra media
+    // Backtest 4 anni (2022-11 → 2026-11, 500 azioni): gli short perdevano in modo sistematico (win rate ~15%,
+    // -$5.800 su $100/trade) mentre i long erano in positivo; per questo i segnali short sono disattivati.
+    private const bool AllowShorts = false;
+    // Volume almeno 2,5x la media a 20 giorni (con 1,5x: troppi segnali deboli, profit factor ~1,0; con 2,5x ~1,7)
+    private readonly decimal _volumeMultiplierThreshold = 2.5m;
     private const int MarketRegimeEmaPeriod = 50;
     private readonly decimal _bodyStrengthThreshold = 0.6m;      // Corpo deve essere 60% della candela
     private const decimal RsiOverextendedHigh = 85m; // niente long oltre questo RSI
@@ -77,6 +81,13 @@ public class EmaRibbonTrendFollowingStrategy
         // Downtrend: EMA5 < EMA10 < EMA20 < EMA30
         bool isUptrendAligned = lastEma5 > lastEma10 && lastEma10 > lastEma20 && lastEma20 > lastEma30;
         bool isDowntrendAligned = lastEma5 < lastEma10 && lastEma10 < lastEma20 && lastEma20 < lastEma30;
+
+        if (!AllowShorts && isDowntrendAligned)
+        {
+            result.Signal = "Rejected - shorts disabled";
+            result.Rejection = RejectionReason.TrendNotAligned;
+            return result;
+        }
 
         if (!isUptrendAligned && !isDowntrendAligned)
         {
